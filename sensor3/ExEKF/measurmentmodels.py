@@ -45,8 +45,7 @@ class CartesianPosition:
             sensor_state: Dict[str, Any] = None,
           ) -> np.ndarray:
         """Calculate the measurement Jacobian matrix at x in sensor_state."""
-        return np.array([1 0 0 0], [0, 1, 0, 0], [0,0,0,0], [0,0,0,0])
- 
+        return np.array([[1, 0, 0, 0], [0, 1, 0, 0]])
 
     def R(self,
             x: np.ndarray,
@@ -55,4 +54,4 @@ class CartesianPosition:
             z: np.ndarray = None,
           ) -> np.ndarray:
         """Calculate the measurement covariance matrix at x in sensor_state having potentially received measurement z."""
-        return np.eye(2)*self.sigma**2
+        return np.eye(self.m)*self.sigma**2

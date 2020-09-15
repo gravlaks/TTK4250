@@ -59,8 +59,8 @@ P = 25 * np.eye(2)
 H_r = np.eye(2)
 H_c = np.eye(2)
 
-R_r = np.array([[79, 36], [36, 36]])
-R_c = np.array([[28, 4], [4, 22]])
+R_c = np.array([[79, 36], [36, 36]])
+R_r = np.array([[28, 4], [4, 22]])
 
 z_c = np.array([2, 14])
 z_r = np.array([-4, 6])
@@ -182,11 +182,12 @@ ax3.axis('equal')
 ax3.legend()
 
 # % task 5 (h)
-line_normal = None  # TODO
+A = np.array([-1, 1])
+line_normal = A  # TODO
 line_position = 5
-xi_mean = None  # TODO
-xi_cov = None  # TODO
-prob_above_line = None  # TODO: hint: norm.sf(...).squeeze() or norm.cdf(...).squeeze()
+xi_mean = A@x_bar_rc  # TODO
+xi_cov = A@P_rc@A.T  # TODO
+prob_above_line = 1 - norm.cdf(line_position, xi_mean, sqrt(xi_cov) ) # TODO: hint: norm.sf(...).squeeze() or norm.cdf(...).squeeze()
 
 print(f'Probability that it is above x_2 = x_1 + 5 is {prob_above_line}')
 fig4, ax4 = plt.subplots(num=4, clear=True)

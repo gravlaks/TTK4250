@@ -51,9 +51,8 @@ class EKF:
 
         F = self.dynamic_model.F(x, Ts)
         Q = self.dynamic_model.Q(x, Ts)
-
-        x_pred = None  # TODO
-        P_pred = None  # TODO
+        x_pred = self.dynamic_model.f(x, Ts)
+        P_pred = F@P@F.T+Q# TODO
 
         state_pred = GaussParams(x_pred, P_pred)
 
@@ -70,9 +69,9 @@ class EKF:
 
         x = ekfstate.mean
 
-        zbar = None  # TODO predicted measurement
+        zbar = self.sensor_model.h(x)  # TODO predicted measurement
 
-        v = None  # TODO the innovation
+        v = z-zbar  # TODO the innovation
 
         return v
 
@@ -85,11 +84,10 @@ class EKF:
         """Calculate the innovation covariance for ekfstate at z in sensorstate."""
 
         x, P = ekfstate
-
+            
         H = self.sensor_model.H(x, sensor_state=sensor_state)
         R = self.sensor_model.R(x, sensor_state=sensor_state, z=z)
-
-        S = None  # TODO the innovation covariance
+        S = H@P@H.T+R  # TODO the innovation covariance
 
         return S
 
@@ -102,8 +100,8 @@ class EKF:
         """Calculate the innovation for ekfstate at z in sensor_state."""
 
         # TODO: reuse the above functions for the innovation and its covariance
-        v = None
-        S = None
+        v = self.innovation_mean(z, ekfstate)
+        S = self.innovation_cov(z, ekfstate)
 
         innovationstate = GaussParams(v, S)
 
@@ -122,10 +120,10 @@ class EKF:
 
         H = self.sensor_model.H(x, sensor_state=sensor_state)
 
-        W = None  # TODO: the kalman gain, Hint: la.solve, la.inv
+        W = np.linalg.solve(S.T, H@P).T # TODO:  kalman gain, Hint: la.solve, la.inv
 
-        x_upd = None  # TODO: the mean update
-        P_upd = None  # TODO: the covariance update
+        x_upd = x + W@v  # TODO: the mean update
+        P_upd = (np.eye(*P.shape)-W@H)@P
 
         ekfstate_upd = GaussParams(x_upd, P_upd)
 
@@ -142,8 +140,8 @@ class EKF:
         """Predict ekfstate Ts units ahead and then update this prediction with z in sensor_state."""
 
         # TODO: resue the above functions
-        ekfstate_pred = None  # TODO
-        ekfstate_upd = None  # TODO
+        ekfstate_pred = self.predict(ekfstate, Ts) 
+        ekfstate_upd = self.update(z, ekfstate_pred)
         return ekfstate_upd
 
     def NIS(self,
@@ -156,8 +154,11 @@ class EKF:
 
         v, S = self.innovation(z, ekfstate, sensor_state=sensor_state)
 
-        NIS = None  # TODO
-
+        NIS = v.T@np.linalg.solve(S, v)
+        #S@x = V
+        #x = Sinv@V
+        #NIS = 
+        
         return NIS
 
     @classmethod
@@ -170,8 +171,8 @@ class EKF:
 
         x, P = ekfstate
 
-        x_diff = None  # Optional step
-        NEES = None  # TODO
+        x_diff =  x- x_true  # Optional step
+        NEES = x_diff.T@np.linalg.solve(P, x_diff) # TODO
         return NEES
 
     def gate(self,
@@ -196,7 +197,7 @@ class EKF:
         # we need this function in IMM, PDA and IMM-PDA exercises
         # not necessary for tuning in EKF exercise
         v, S = self.innovation(z, ekfstate, sensor_state=sensor_state)
-
+        
         # TODO: log likelihood, Hint: log(N(v, S))) -> NIS, la.slogdet.
         ll = None
 
@@ -249,7 +250,11 @@ class EKF:
         # the predicted is good to have for evaluation purposes
         # A potential pythonic way of looping through  the data
         for k, (zk, Tsk, ssk) in enumerate(zip(Z, Ts_arr, sensor_state_seq)):
-            pass
+            ekfpred = self.predict(ekfupd, Tsk)
+            ekfupd = self.update(zk, ekfpred)
+            
+            ekfpred_list[k] = ekfpred
+            ekfupd_list[k] = ekfupd
 
         return ekfpred_list, ekfupd_list
 
