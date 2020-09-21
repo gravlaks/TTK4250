@@ -18,14 +18,15 @@ from typing import (
 )
 from mixturedata import MixtureParameters
 from gaussparams import GaussParams
-from estimatorduck import StateEstimator
-
+#from estimatorduck import StateEstimator
+from mixturereduction import gaussian_mixture_moments #done 
 # packages
 from dataclasses import dataclass
 from singledispatchmethod import singledispatchmethod
 import numpy as np
 from scipy import linalg
 from scipy.special import logsumexp
+from ekf import EKF as StateEstimator
 
 # local
 import discretebayes
@@ -84,9 +85,8 @@ class IMM(Generic[MT]):
         mix_probabilities: np.ndarray,
     ) -> List[MT]:
         
-        # means for state
-
-        mixed_states = # TODO
+        
+        mixed_states = gaussian_mixture_moments(mix_probabilities, immstate.components[:].mean, immstate.components[:].cov)
         return mixed_states
 
     def mode_matched_prediction(
@@ -95,7 +95,8 @@ class IMM(Generic[MT]):
         # The sampling time
         Ts: float,
     ) -> List[MT]:
-        modestates_pred = # TODO
+        
+        modestates_pred = self.filters[:].predict(mode_states, Ts) #Done
         return modestates_pred
 
     def predict(
@@ -111,12 +112,11 @@ class IMM(Generic[MT]):
         appoximate resulting state distribution as Gaussian for each mode, then predict each mode.
         """
 
-        # TODO: proposed structure
-        predicted_mode_probability, mixing_probability = # TODO
+        predicted_mode_probability, mixing_probability = mix_probabilities(immstate, Ts) #Done
 
-        mixed_mode_states: List[MT] = # TODO
+        mixed_mode_states: List[MT] = mix_states(immstate, mixing_probability) #Done
 
-        predicted_mode_states = # TODO
+        predicted_mode_states = mode_matched_prediction(mixed_mode_states, Ts) #Done
 
         predicted_immstate = MixtureParameters(
             predicted_mode_probability, predicted_mode_states
