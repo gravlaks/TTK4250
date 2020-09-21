@@ -112,11 +112,11 @@ class IMM(Generic[MT]):
         appoximate resulting state distribution as Gaussian for each mode, then predict each mode.
         """
 
-        predicted_mode_probability, mixing_probability = mix_probabilities(immstate, Ts) #Done
+        predicted_mode_probability, mixing_probability = self.mix_probabilities(immstate, Ts) #Done
 
-        mixed_mode_states: List[MT] = mix_states(immstate, mixing_probability) #Done
+        mixed_mode_states: List[MT] = self.mix_states(immstate, mixing_probability) #Done
 
-        predicted_mode_states = mode_matched_prediction(mixed_mode_states, Ts) #Done
+        predicted_mode_states = self.mode_matched_prediction(mixed_mode_states, Ts) #Done
 
         predicted_immstate = MixtureParameters(
             predicted_mode_probability, predicted_mode_states
@@ -131,8 +131,7 @@ class IMM(Generic[MT]):
     ) -> List[MT]:
         """Update each mode in immstate with z in sensor_state."""
 
-        updated_state = # TODO
-
+        updated_state = self.filters[:].update(z, immstate, sensor_state)
         return updated_state
 
     def update_mode_probabilities(
@@ -143,12 +142,11 @@ class IMM(Generic[MT]):
     ) -> np.ndarray:
         """Calculate the mode probabilities in immstate updated with z in sensor_state"""
 
-        mode_loglikelihood =  # TODO
+        mode_loglikelihood =  (z-h(immstate[:].mean))@np.inv(immstate[:].cov)@(z-h(immstate[:].mean)).T # TODO
 
         # potential intermediate step logjoint =
-
-        updated_mode_probabilities = # TODO
-
+        predicted_mode_probability = self.immstate.components[:].predicted_mode_probability #Done
+        updated_mode_probabilities = (mode_loglikelihood*predicted_mode_probability)/np.sum(mode_loglikelihood*predicted_mode_probability) #Done
         # Optional debuging
         assert np.all(np.isfinite(updated_mode_probabilities))
         assert np.allclose(np.sum(updated_mode_probabilities), 1)
@@ -163,8 +161,8 @@ class IMM(Generic[MT]):
     ) -> MixtureParameters[MT]:
         """Update the immstate with z in sensor_state."""
 
-        updated_weights = # TODO
-        updated_states = # TODO
+        updated_weights = self.updated_mode_probabilities(z, immstate, sensor_state) #Done
+        updated_states =  self.mode_matched_update(z, immstate, sensor_state)
 
         updated_immstate = MixtureParameters(updated_weights, updated_states)
         return updated_immstate
@@ -178,8 +176,8 @@ class IMM(Generic[MT]):
     ) -> MixtureParameters[MT]:
         """Predict immstate with Ts time units followed by updating it with z in sensor_state"""
 
-        predicted_immstate = None # TODO
-        updated_immstate = None # TODO
+        predicted_immstate = self.predict(immstate, Ts) # Done
+        updated_immstate =  self.update(z, predicted_immstate, sensor_state) # Done 
 
         return updated_immstate
 
@@ -210,8 +208,9 @@ class IMM(Generic[MT]):
             [c.weights.ravel() for c in immstate_mixture.components]
         )
 
-        # flip conditioning order with Bayes
-        mode_prob, mode_conditioned_component_prob = None # TODO
+        # flip conditioning order with Bayes 
+        #components, is this p(X|SK), BUT WE WANT P(SK|X). Is mode_prob p(x)
+        mode_prob, mode_conditioned_component_prob = discretebayes.discrete_bayes(weights, component_conditioned_mode_prob) # Done
 
         # Hint list_a of lists_b to list_b of lists_a: zip(*immstate_mixture.components)
         mode_states = None # TODO:
