@@ -60,7 +60,7 @@ axs1[1].set_ylabel(r"$\dot \theta$")
 
 # constants
 Ld = 4
-Ll = 0
+Ll = 5
 r = 0.25
 
 # noise pdf
@@ -89,16 +89,17 @@ ax2.set_ylabel("z")
 # %% Task: Estimate using a particle filter
 
 # number of particles to use
-N = # TODO
+N = 1000 #Done
+
 
 # initialize particles, pretend you do not know where the pendulum starts
 px = np.array([
-    rng. # TODO,
-    rng. # TODO
+    rng.uniform(-np.pi, np.pi, N), # Done, this represents theta, an angle between -pi and pi. Can be anywhere
+    rng.normal(size=N)*np.pi/3 # Done this is theta dot, should probably start around zero so normal is clever .
     ]).T
-
+    
 # initial weights
-w = # TODO
+w = np.full((N,1), 1/N) #weights must be in sum 1.
 
 # allocate some space for resampling particles
 pxn = np.zeros_like(px)
@@ -126,21 +127,34 @@ for k in range(K):
     print(f"k = {k}")
     # weight update
     for n in range(N):
-        w[n] =  # TODO, hint: PF_measurement_distribution.pdf
-    w = # TODO: normalize
+        dz = Z[k] - h(px[n], Ld, l, Ll)
+        w[n] = PF_measurement_distribution.pdf(dz)*w[n]
 
+    sum_weights = np.sum(w)
+    w = np.array([weight/sum_weights for weight in w])
+    
     # resample
     # TODO: some pre calculations?
+    cumweights = np.cumsum(w)
+    indicesout = np.zeros((N, 1))
+    noise = rng.random((1,1)) / N
     i = 0
     for n in range(N):
         # find a particle 'i' to pick
+        uj = (n)/N +noise 
+        while  i != len(cumweights) and uj>cumweights[i]:
+            i +=1
         # algorithm in the book, but there are other options as well
         pxn[n] = px[i]
+    rng.shuffle(pxn, axis=0)  # shuffling because recommended
+    
+    #Recommended to replace weights with 1/N
+    w.fill(1.0/N)
 
     # trajecory sample prediction
     for n in range(n):
-        vkn = # TODO: process noise, hint: PF_dynamic_distribution.rvs
-        px[n] = # TODO: particle prediction
+        vkn = PF_dynamic_distribution.rvs() #hint: PF_dynamic_distribution.rvs
+        px[n] = pendulum_dynamics_discrete(pxn[n], vkn, Ts, a) # TODO: particle prediction
 
     # plot
     sch_particles.set_offsets(np.c_[l * np.sin(pxn[:, 0]), -l * np.cos(pxn[:, 0])])
@@ -150,5 +164,5 @@ for k in range(K):
     plt.show(block=False)
     plt.waitforbuttonpress(plotpause)
 
-plt.waitforbuttonpress()
+#plt.waitforbuttonpress()
 # %%

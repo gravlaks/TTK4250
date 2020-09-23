@@ -67,7 +67,8 @@ class IMM(Generic[MT]):
     ]:  # predicted_mode_probabilities, mix_probabilities: shapes = ((M, (M ,M))).
         # mix_probabilities[s] is the mixture weights for mode s
         """Calculate the predicted mode probability and the mixing probabilities."""
-
+        # My comment: this step should implement step 1., 6.27
+        
         predicted_mode_probabilities, mix_probabilities = discretebayes.discrete_bayes(immstate.weights,self.PI)
         # TODO hint: discretebayes.discrete_bayes
 
@@ -85,8 +86,19 @@ class IMM(Generic[MT]):
         mix_probabilities: np.ndarray,
     ) -> List[MT]:
         
+        #My comment: Here we are implementing the step 2 of the algorithm, 6.29 and 6.30
+        
+        means = np.array([component.mean for component in immstate.components])
+        covs = np.array([component.cov for component in immstate.components])
         
         mixed_states = gaussian_mixture_moments(mix_probabilities, immstate.components[:].mean, immstate.components[:].cov)
+        
+        mixed_states = []
+        for i in range(len(means)):
+            mixed_states.append(gaussian_mixture_moments(mix_probabilities[i], means[i], covs[i]))
+            
+        mixed_states = np.array(mixed_states)
+        
         return mixed_states
 
     def mode_matched_prediction(
@@ -96,8 +108,11 @@ class IMM(Generic[MT]):
         Ts: float,
     ) -> List[MT]:
         
-        modestates_pred = self.filters[:].predict(mode_states, Ts) #Done
-        return modestates_pred
+        #My comment, here we are doing step 3, mode mathed prediction
+        modestates_pred = []
+        for i in range(len(self.filters)):
+            modestates_pred.append(self.filters[i].predict(mode_states[i], Ts))
+        return np.array(modestates_pred)
 
     def predict(
         self,
@@ -130,9 +145,12 @@ class IMM(Generic[MT]):
         sensor_state: Optional[Dict[str, Any]] = None,
     ) -> List[MT]:
         """Update each mode in immstate with z in sensor_state."""
-
-        updated_state = self.filters[:].update(z, immstate, sensor_state)
-        return updated_state
+        
+        #MY comment: This implements step 3 update
+        updated_state = []
+        for filt, mode_state in zip(self.filters, immstate.components):
+            updated_state.append(filt.update(z, mode_state, sensor_state))
+        return np.arrray(updated_state)
 
     def update_mode_probabilities(
         self,
@@ -141,13 +159,21 @@ class IMM(Generic[MT]):
         sensor_state: Dict[str, Any] = None,
     ) -> np.ndarray:
         """Calculate the mode probabilities in immstate updated with z in sensor_state"""
-
-        mode_loglikelihood =  (z-h(immstate[:].mean))@np.inv(immstate[:].cov)@(z-h(immstate[:].mean)).T # TODO
-
+        # This function will update the mode probabilities pk(sk). Given in equation 6.33
+        
+        #mode_loglikelihood =  (z-h(immstate[:].mean))@np.inv(immstate[:].cov)@(z-h(immstate[:].mean)).T # TODO
+        mode_loglikelihood = np.array([ekf_filter.loglikelihood(z, comp, sensor_state) for ekf_filter, comp in immstate.components])
         # potential intermediate step logjoint =
-        predicted_mode_probability = self.immstate.components[:].predicted_mode_probability #Done
-        updated_mode_probabilities = (mode_loglikelihood*predicted_mode_probability)/np.sum(mode_loglikelihood*predicted_mode_probability) #Done
-        # Optional debuging
+        
+        predicted_mode_probabilities = self.PI*immstate.weights #Done
+        
+        denominator = np.sum(np.exp(mode_loglikelihood)*predicted_mode_probabilities) #done
+        log_pred_mode_probs = np.log(predicted_mode_probabilities)
+        log_denominator = np.log(denominator)
+        log_updated_mode_probs = mode_loglikelihood + log_pred_mode_probs - log_denominator
+        
+        
+        updated_mode_probabilities = np.exp(log_updated_mode_probs)
         assert np.all(np.isfinite(updated_mode_probabilities))
         assert np.allclose(np.sum(updated_mode_probabilities), 1)
 
@@ -224,8 +250,20 @@ class IMM(Generic[MT]):
 
         # ! You can assume all the modes have the same reduce and estimate function
         # ! and use eg. self.filters[0] functionality
-        data_reduced = # TODO
-        estimate = # TODO
+        data_reduced = None # TODO
+        
+        
+        means = []
+        covs = []
+        for mean, cov in immstate.components:
+            means.append(means)
+            covs.append(cov)
+            
+        means = np.array(means)
+        covs = np.array(cov)
+        means_reduced, covs_reduced = mixturereduction.GaussianMixtureMoments(immstate.weights, means, covs)
+        
+        estimate = GaussParams(means_reduced, covs_reduced)
         return estimate
 
     def gate(

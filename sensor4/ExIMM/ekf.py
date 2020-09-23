@@ -196,11 +196,15 @@ class EKF:
         """Calculate the log likelihood of ekfstate at z in sensor_state"""
         # we need this function in IMM, PDA and IMM-PDA exercises
         # not necessary for tuning in EKF exercise
-        v, S = self.innovation(z, ekfstate, sensor_state=sensor_state)
         
-        # TODO: log likelihood, Hint: log(N(v, S))) -> NIS, la.slogdet.
-        ll = None
+        v, S = self.innovation(z, ekfstate, sensor_state=sensor_state)
+        cholS = la.cholesky(S, lower=True)
+        invcholS_v = la.solve_triangular(cholS, v, lower=True)
+        NISby2 = (invcholS_v ** 2).sum() / 2
+        logdetSby2 = np.log(cholS)
+        ll = -(NISby2 + logdetSby2 + self._MLOG2PIby2)
 
+        # TODO: log likelihood, Hint: log(N(v, S))) -> NIS, la.slogdet.
         return ll
 
     @classmethod
