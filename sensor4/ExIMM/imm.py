@@ -249,9 +249,7 @@ class IMM(Generic[MT]):
         """Calculate a state estimate with its covariance from immstate"""
 
         # ! You can assume all the modes have the same reduce and estimate function
-        # ! and use eg. self.filters[0] functionality
-        data_reduced = None # TODO
-        
+        # ! and use eg. self.filters[0] functionality        
         
         means = []
         covs = []

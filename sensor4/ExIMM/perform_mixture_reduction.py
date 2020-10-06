@@ -11,7 +11,7 @@ sigmas = np.array([1, 1.5, 1.5]).reshape(
     3, 1, 1
 )  # note std and not var as in gaussian_mixture_moments
 print(sigmas)
-w = np.array([1/6, 4/6, 1/6])
+w = np.array([1/3, 1/3, 1/3])
 #w = np.array(np.ones(shape=(3,1)))
 w = w.ravel() / np.sum(w)
 assert np.allclose(w.sum(), 1), "weights must sum to one"
