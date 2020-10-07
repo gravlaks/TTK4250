@@ -90,25 +90,25 @@ ax1.set_title("True trajectory and the nearby measurements")
 # I do not think you can run this with inline plotting. '%matplotlib' in the console to make it external
 # Remember that you can exit the figure.
 # comment this out when you are
-fig2, ax2 = plt.subplots(num=2, clear=True)
-sh = ax2.scatter(np.nan, np.nan)
-th = ax2.set_title(f"measurements at step 0")
-ax2.axis([0, 700, -100, 300])
-plotpause = 0.003
-# sets a pause in between time steps if it goes to fast
-for k, Zk in enumerate(Z):
-    sh.set_offsets(Zk)
-    th.set_text(f"measurements at step {k}")
-    fig2.canvas.draw_idle()
-    plt.show(block=False)
-    plt.pause(plotpause)
+# fig2, ax2 = plt.subplots(num=2, clear=True)
+# sh = ax2.scatter(np.nan, np.nan)
+# th = ax2.set_title(f"measurements at step 0")
+# ax2.axis([0, 700, -100, 300])
+# plotpause = 0.003
+# # sets a pause in between time steps if it goes to fast
+# for k, Zk in enumerate(Z):
+#     sh.set_offsets(Zk)
+#     th.set_text(f"measurements at step {k}")
+#     fig2.canvas.draw_idle()
+#     plt.show(block=False)
+#     plt.pause(plotpause)
 # %%
-sigma_a = # TODO
-sigma_z = # TODO
+sigma_a = 5 # Done
+sigma_z = 5 # Done
 
-PD = # TODO
-clutter_intensity = # TODO
-gate_size = # TODO
+PD = 0.9 # Done
+clutter_intensity = 1e-3 # Done
+gate_size = 3 # Done, 3 sigma should cover a lot.
 
 dynamic_model = dynamicmodels.WhitenoiseAccelleration(sigma_a)
 measurement_model = measurementmodels.CartesianPosition(sigma_z)
@@ -135,19 +135,25 @@ tracker_update_list = []
 tracker_predict_list = []
 # estimate
 for k, (Zk, x_true_k) in enumerate(zip(Z, Xgt)):
-    tracker_predict = # TODO
-    tracker_update = # TODO
-    NEES[k] = # TODO
-    NEESpos[k] = # TODO
-    NEESvel[k] = # TODO
+    tracker_predict = tracker.predict(tracker_update, Ts) #Done
+    tracker_update = tracker.update(Zk, tracker_predict) # Done
+    NEES[k] = tracker.state_filter.NEES(tracker_update, x_true_k[0:4]) # Done
+    
+    x, P = tracker_update
+    NEESpos[k] = tracker.state_filter.NEES(GaussParams(x[0:2], P[0:2, 0:2]),x_true_k[0:2]) # Done
+    NEESvel[k] = tracker.state_filter.NEES(GaussParams(x[2:4], P[2:4, 2:4]),x_true_k[2:4]) # Done
 
     tracker_predict_list.append(tracker_predict)
     tracker_update_list.append(tracker_update)
 
-x_hat = np.array([upd.mean for upd in tracker_update_list])
 # calculate a performance metric
-posRMSE = # TODO: position RMSE
-velRMSE = # TODO: velocity RMSE
+x_hat = np.array([upd.mean for upd in tracker_update_list])
+
+pos_errors = np.ndarray([np.norm(estimate[0:2]-x_true[0:2]) for estimate, x_true in zip(x_hat, Xgt)])
+vel_errors = np.ndarray([np.norm(estimate[2:4]-x_true[2:4]) for estimate, x_true in zip(x_hat, Xgt)])
+
+posRMSE = np.sqrt(np.mean(pos_errors**2, axis=2))# TODO: position RMSE
+velRMSE = np.sqrt(np.mean(vel_errors**2, axis=2))# TODO: velocity RMSE
 
 # %% plots
 fig3, ax3 = plt.subplots(num=3, clear=True)
@@ -159,9 +165,10 @@ ax3.set_title(
 
 fig4, axs4 = plt.subplots(3, sharex=True, num=4, clear=True)
 
-confprob = # TODO: probability for confidence interval
-CI2 = # TODO: confidence interval for NEESpos and NEESvel
-CI4 = # TODO: confidence interval for NEES
+confprob = 0.95 # TODO: probability for confidence interval
+CI2K = np.asarray(scipy.stats.chi2.interval(confprob, 2*K)) / K
+CI4K = np.asarray(scipy.stats.chi2.interval(confprob, 4*K)) / K
+#Done
 
 axs4[0].plot(np.arange(K) * Ts, NEESpos)
 axs4[0].plot([0, (K - 1) * Ts], np.repeat(CI2[None], 2, 0), "--r")
@@ -181,12 +188,14 @@ axs4[2].set_ylabel("NEES")
 inCI = np.mean((CI2[0] <= NEES) * (NEES <= CI2[1]))
 axs4[2].set_title(f"{inCI*100:.1f}% inside {confprob*100:.1f}% CI")
 
-confprob = # TODO
-CI2K = # TODO: ANEESpos and ANEESvel
-CI4K = # TODO: NEES
-ANEESpos = # TODO
-ANEESvel = # TODO
-ANEES = # TODO
+confprob = 0.95 # TODO: probability for confidence interval
+CI2K = np.asarray(scipy.stats.chi2.interval(confprob, 2*K)) / K
+CI4K = np.asarray(scipy.stats.chi2.interval(confprob, 4*K)) / K 
+
+ANEES = np.mean(NEES)
+ANEESpos = np.mean(NEESpos)
+ANEESvel = np.mean(NEESvel)
+
 print(f"ANEESpos = {ANEESpos:.2f} with CI = [{CI2K[0]:.2f}, {CI2K[1]:.2f}]")
 print(f"ANEESvel = {ANEESvel:.2f} with CI = [{CI2K[0]:.2f}, {CI2K[1]:.2f}]")
 print(f"ANEES = {ANEES:.2f} with CI = [{CI4K[0]:.2f}, {CI4K[1]:.2f}]")
